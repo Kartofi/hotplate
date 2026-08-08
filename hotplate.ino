@@ -1,15 +1,14 @@
-#include <SPI.h>
-#include <Wire.h>
+#include "max6675.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include "max6675.h"
+#include <SPI.h>
+#include <Wire.h>
 
 // Screen configuration
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 #define SCREEN_ADDRESS 0x3C
-
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, OLED_RESET);
 
@@ -34,43 +33,29 @@ void setup() {
 
   Serial.begin(9600);
 
-
   Serial.println(F("Serial started..."));
-
 
   pinMode(transistorPin, OUTPUT);
   pinMode(btnPlus, INPUT_PULLDOWN);
   pinMode(btnMinus, INPUT_PULLDOWN);
   pinMode(btnOk, INPUT_PULLDOWN);
 
-
   // Turn off PTC
   digitalWrite(transistorPin, LOW);
-
 
   pinMode(2, INPUT_PULLUP);
   pinMode(3, INPUT_PULLUP);
   Serial.println(F("Pull-ups configured..."));
-
 
   Wire1.setSDA(2);
   Wire1.setSCL(3);
   Wire1.begin();
   Serial.println(F("Wire1 I2C initialized..."));
 
-
   Serial.println(F("Contacting SSD1306..."));
-  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    // If 0x3C fails, try fallback address 0x3D
-    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
-      Serial.println(F("OLED init failed at both 0x3C and 0x3D!"));
-      while (true)
-        ;  // Stop here if screen is unreachable
-    }
-  }
+  display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
 
   Serial.println(F("Display boot successful!"));
-
 
   display.clearDisplay();
   display.setTextSize(1);
@@ -118,30 +103,27 @@ void loop() {
   bool btnOkState = digitalRead(btnOk);
   float newTemp = thermocouple.readCelsius();
 
-float internalTemp = analogReadTemp();
+  float internalTemp = analogReadTemp();
 
-if (internalTemp >= 50 || !std::isnan(newTemp) && newTemp > ){
+  if (internalTemp >= 50 || !std::isnan(newTemp) && newTemp >) {
 
- display.clearDisplay();
-  display.setCursor(0, 0);
-  display.setTextSize(1);
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.setTextSize(1);
 
-display.println("THERMAL RUNAWAY FROM THE PICO");
+    display.println("THERMAL RUNAWAY FROM THE PICO");
     Serial.println(F("THERMAL RUNAWAY FROM THE PICO"));
     digitalWrite(transistorPin, LOW);
     active = false;
     transistorState = LOW;
 
-  delay(1000);
-  return;
-}
+    delay(1000);
+    return;
+  }
 
   display.clearDisplay();
   display.setCursor(0, 0);
   display.setTextSize(1);
-
-
-
 
   if (isnan(newTemp)) {
     display.println("ERR (No Sensor)");
@@ -155,13 +137,15 @@ display.println("THERMAL RUNAWAY FROM THE PICO");
 
   temp = newTemp + thermalLag;
 
-  if (btnMinusState == HIGH && lastMinusState == LOW && active == false && setTemp >= 5) {
+  if (btnMinusState == HIGH && lastMinusState == LOW && active == false &&
+      setTemp >= 5) {
     // Click Minus
     setTemp -= 5;
     delay(50);
   }
 
-  if (btnPlusState == HIGH && lastPlusState == LOW && active == false && setTemp <= MaxTemp - 5) {
+  if (btnPlusState == HIGH && lastPlusState == LOW && active == false &&
+      setTemp <= MaxTemp - 5) {
     // Click Plus
     setTemp += 5;
     delay(50);
