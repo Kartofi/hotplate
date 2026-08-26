@@ -26,8 +26,23 @@ const int btnPlus = 9;
 const int btnMinus = 10;
 const int btnOk = 11;
 
+// Settings
 const float tempTolerance = 10;
 const float MaxTemp = 230;
+// Statics
+static const unsigned char PROGMEM image_power_bits[] = {
+    0x3f, 0xff, 0x80, 0x40, 0x00, 0x40, 0x80, 0x00, 0x20, 0x80, 0x40, 0x20,
+    0x80, 0x40, 0x20, 0x82, 0x48, 0x20, 0x84, 0x44, 0x20, 0x88, 0x42, 0x20,
+    0x88, 0x42, 0x20, 0x88, 0x42, 0x20, 0x88, 0x02, 0x20, 0x88, 0x02, 0x20,
+    0x84, 0x04, 0x20, 0x82, 0x08, 0x20, 0x81, 0xf0, 0x20, 0x80, 0x00, 0x20,
+    0x80, 0x00, 0x20, 0xc0, 0x00, 0x60, 0x7f, 0xff, 0xc0, 0x3f, 0xff, 0x80};
+
+static const unsigned char PROGMEM image_power_on_bits[] = {
+    0x3f, 0xff, 0x80, 0x7f, 0xff, 0xc0, 0xff, 0xff, 0xe0, 0xff, 0xbf, 0xe0,
+    0xff, 0xbf, 0xe0, 0xfd, 0xb7, 0xe0, 0xfb, 0xbb, 0xe0, 0xf7, 0xbd, 0xe0,
+    0xf7, 0xbd, 0xe0, 0xf7, 0xbd, 0xe0, 0xf7, 0xfd, 0xe0, 0xf7, 0xfd, 0xe0,
+    0xfb, 0xfb, 0xe0, 0xfd, 0xf7, 0xe0, 0xfe, 0x0f, 0xe0, 0xff, 0xff, 0xe0,
+    0xff, 0xff, 0xe0, 0xff, 0xff, 0xe0, 0x7f, 0xff, 0xc0, 0x3f, 0xff, 0x80};
 
 void setup() {
 
@@ -67,7 +82,11 @@ void setup() {
 
   delay(1500);
 }
+
+// State
 float temp = 0;
+float internalTemp = 0;
+
 float setTemp = 0;
 
 float thermalLag = 10;
@@ -79,7 +98,7 @@ bool lastMinusState = LOW;
 bool lastOkState = LOW;
 
 bool transistorState = LOW;
-
+//
 void maintainTemp() {
   if (active == false) {
     return;
@@ -96,6 +115,49 @@ void maintainTemp() {
   }
 }
 
+void updateScreen(void) {
+  display.clearDisplay();
+  // plate_temp
+  display.setTextColor(1);
+  display.setTextWrap(false);
+  display.setCursor(55, 33);
+  display.print(String(Temp));
+  // pi_temp
+  display.setCursor(55, 48);
+  display.print(String(internalTemp));
+  // Labels
+  display.setCursor(5, 48);
+  display.print("Pi Pico: ");
+  display.setCursor(10, 33);
+  display.print("Plate:");
+
+  display.drawRoundRect(0, 26, 91, 38, 10, 1);
+
+  if (active) {
+    if (transistorState == HIGH) {
+      // Down
+      display.drawTriangle(110, 57, 122, 35, 98, 35, 1);
+      // Up
+      display.fillTriangle(110, 8, 122, 30, 98, 30, 1);
+
+    } else {
+      // Down
+      display.fillTriangle(110, 57, 122, 35, 98, 35, 1);
+      // Up
+      display.drawTriangle(110, 8, 122, 30, 98, 30, 1);
+    }
+  }
+
+  // Power icon
+  display.drawBitmap(5, 3, active ? image_power_on_bits : image_power_bits, 19,
+                     20, 1);
+
+  // string 10
+  display.setCursor(29, 11);
+  display.print("Hot Plate v1");
+  display.display();
+}
+
 void loop() {
 
   bool btnPlusState = digitalRead(btnPlus);
@@ -103,16 +165,16 @@ void loop() {
   bool btnOkState = digitalRead(btnOk);
   float newTemp = thermocouple.readCelsius();
 
-  float internalTemp = analogReadTemp();
+  internalTemp = analogReadTemp();
 
-  if (internalTemp >= 50 || !std::isnan(newTemp) && newTemp >) {
+  if (internalTemp >= 50 || !std::isnan(newTemp) && newTemp >= 500) {
 
     display.clearDisplay();
     display.setCursor(0, 0);
     display.setTextSize(1);
 
-    display.println("THERMAL RUNAWAY FROM THE PICO");
-    Serial.println(F("THERMAL RUNAWAY FROM THE PICO"));
+    display.println("THERMAL RUNAWAY");
+    Serial.println(F("THERMAL RUNAWAY"));
     digitalWrite(transistorPin, LOW);
     active = false;
     transistorState = LOW;
@@ -156,17 +218,7 @@ void loop() {
     delay(50);
   }
 
-  display.println("N Temp C: ");
-  display.print(temp);
-
-  display.println("T Temp: ");
-  display.print(setTemp);
-
-  display.println("Active: ");
-  display.print(active ? "ON" : "OFF");
-
-  display.display();
-
+  updateScreen();
   // Print to serial
   Serial.print("Temp: ");
   Serial.print(temp);
