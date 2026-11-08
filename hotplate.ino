@@ -165,9 +165,9 @@ float getTemp()
     if (now - lastTempCheck >= 500)
     {
         lastTempCheck = now;
-        return thermocouple.readCelsius();
+        return thermocouple.readCelsius() - thermalLag;
     }
-    return temp - thermalLag;
+    return temp;
 }
 /// Display all the stuff to the ssd1306 screen
 void updateScreen(void)
@@ -273,7 +273,7 @@ void loop()
     }
 
     handleInputs();
-    temp = newTemp + thermalLag;
+    temp = newTemp;
 
     // Print to serial
     Serial.print("Temp: ");
